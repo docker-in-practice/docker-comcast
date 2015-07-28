@@ -1,0 +1,69 @@
+diff --git a/comcast.go b/comcast.go
+index 197fdc0..13bca81 100644
+--- a/comcast.go
++++ b/comcast.go
+@@ -1,10 +1,13 @@
+ package main
+ 
+ import (
++	"bytes"
+ 	"flag"
++	"github.com/samalba/dockerclient"
+ 	"github.com/tylertreat/comcast/throttler"
+ 	"log"
+ 	"net"
++	"os/exec"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -12,6 +15,7 @@ import (
+ func main() {
+ 	// TODO: Add support for other options like packet reordering, duplication, etc.
+ 	var (
++		cont        = flag.String("cont", "", "Container ID or name to get virtual interface of")
+ 		device      = flag.String("device", "", "Interface (device) to use (defaults to eth0 where applicable)")
+ 		mode        = flag.String("mode", throttler.Start, "Start or stop packet controls")
+ 		latency     = flag.Int("latency", -1, "Latency to add in ms")
+@@ -26,6 +30,42 @@ func main() {
+ 	)
+ 	flag.Parse()
+ 
++	// Probably don't want to apply to eth0 by default when in a container
++	if *cont == "" && *device == "" {
++		log.Fatalln("Must specify container or device")
++	}
++	if *cont != "" {
++		if *device != "" {
++			log.Fatalln("Cannot specify container and device")
++		}
++		endpoint := "unix:///var/run/docker.sock"
++		docker, err := dockerclient.NewDockerClient(endpoint, nil)
++		if err != nil {
++			log.Fatalln("Couldn't connect to docker socket:", err)
++		}
++		container, err := docker.InspectContainer(*cont)
++		if err != nil {
++			log.Fatalln("Couldn't inspect container:", err)
++		}
++		pid := container.State.Pid
++		if pid < 2 {
++			log.Fatalln("Couldn't find process id for container")
++		}
++		cmd := exec.Command("findveth.sh", strconv.Itoa(pid))
++		var outbuf bytes.Buffer
++		var errbuf bytes.Buffer
++		cmd.Stdout = &outbuf
++		cmd.Stderr = &errbuf
++		err = cmd.Run()
++		outstr := outbuf.String()
++		errstr := errbuf.String()
++		if err != nil {
++			log.Fatalln("Failed to find interface:", err, outstr, errstr)
++		}
++		*device = strings.TrimSpace(outstr)
++		log.Printf("Found interface %s for container '%s'", *device, *cont)
++	}
++
+ 	throttler.Run(&throttler.Config{
+ 		Device:           *device,
+ 		Mode:             *mode,
