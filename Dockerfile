@@ -15,7 +15,7 @@ RUN cd /work && \
     export GOPATH=$(pwd)/gopath && \
     \
     cd Comcast && \
-    git apply ../docker-comcast.patch && \
+    patch <../docker-comcast.patch && \
     go get -d . && \
     go build . && \
     mv Comcast ../comcast && \
