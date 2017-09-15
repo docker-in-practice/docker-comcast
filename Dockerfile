@@ -1,10 +1,10 @@
-FROM alpine:3.2
+FROM alpine:3.6
 
 COPY . /work/
 
 RUN cd /work && \
     apk update && \
-    apk add go=1.4.2-r0 git && \
+    apk add go=1.8.3-r0 git musl-dev && \
     apk add ethtool ipfw iptables iproute2 sudo && \
     mkdir -p gopath/src/github.com/tylertreat && \
     ln -s $(pwd)/comcast gopath/src/github.com/tylertreat/ && \
@@ -16,9 +16,10 @@ RUN cd /work && \
     go build . && \
     cd .. && \
     \
-    apk del go git && \
+    apk del go git musl-dev && \
     rm -r gopath /var/cache/* && \
     \
+    rm /usr/bin/nsenter && \
     ln -s $(pwd)/nsenter-2015-07-28 /usr/bin/nsenter && \
     ln -s $(pwd)/findveth.sh        /usr/bin/ && \
     ln -s $(pwd)/comcast/comcast    /usr/bin/

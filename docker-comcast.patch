@@ -1,53 +1,61 @@
 diff --git a/comcast.go b/comcast.go
-index 197fdc0..13bca81 100644
+index a300611..a8d883b 100644
 --- a/comcast.go
 +++ b/comcast.go
-@@ -1,10 +1,13 @@
+@@ -1,13 +1,16 @@
  package main
  
  import (
 +	"bytes"
  	"flag"
-+	"github.com/samalba/dockerclient"
- 	"github.com/tylertreat/comcast/throttler"
- 	"log"
+ 	"fmt"
  	"net"
+ 	"os"
 +	"os/exec"
  	"strconv"
  	"strings"
+ 
++	"github.com/samalba/dockerclient"
+ 	"github.com/tylertreat/comcast/throttler"
  )
-@@ -12,6 +15,7 @@ import (
+ 
+@@ -16,6 +19,7 @@ const version = "1.0.0"
  func main() {
  	// TODO: Add support for other options like packet reordering, duplication, etc.
  	var (
 +		cont        = flag.String("cont", "", "Container ID or name to get virtual interface of")
  		device      = flag.String("device", "", "Interface (device) to use (defaults to eth0 where applicable)")
- 		mode        = flag.String("mode", throttler.Start, "Start or stop packet controls")
+ 		stop        = flag.Bool("stop", false, "Stop packet controls")
  		latency     = flag.Int("latency", -1, "Latency to add in ms")
-@@ -26,6 +30,42 @@ func main() {
- 	)
- 	flag.Parse()
+@@ -38,6 +42,48 @@ func main() {
+ 
+ 	targetIPv4, targetIPv6 := parseAddrs(*targetaddr)
  
 +	// Probably don't want to apply to eth0 by default when in a container
 +	if *cont == "" && *device == "" {
-+		log.Fatalln("Must specify container or device")
++		fmt.Println("Must specify container or device")
++		os.Exit(1)
 +	}
 +	if *cont != "" {
 +		if *device != "" {
-+			log.Fatalln("Cannot specify container and device")
++			fmt.Println("Cannot specify container and device")
++			os.Exit(1)
 +		}
 +		endpoint := "unix:///var/run/docker.sock"
 +		docker, err := dockerclient.NewDockerClient(endpoint, nil)
 +		if err != nil {
-+			log.Fatalln("Couldn't connect to docker socket:", err)
++			fmt.Println("Couldn't connect to docker socket:", err)
++			os.Exit(1)
 +		}
 +		container, err := docker.InspectContainer(*cont)
 +		if err != nil {
-+			log.Fatalln("Couldn't inspect container:", err)
++			fmt.Println("Couldn't inspect container:", err)
++			os.Exit(1)
 +		}
 +		pid := container.State.Pid
 +		if pid < 2 {
-+			log.Fatalln("Couldn't find process id for container")
++			fmt.Println("Couldn't find process id for container")
++			os.Exit(1)
 +		}
 +		cmd := exec.Command("findveth.sh", strconv.Itoa(pid))
 +		var outbuf bytes.Buffer
@@ -58,12 +66,13 @@ index 197fdc0..13bca81 100644
 +		outstr := outbuf.String()
 +		errstr := errbuf.String()
 +		if err != nil {
-+			log.Fatalln("Failed to find interface:", err, outstr, errstr)
++			fmt.Println("Failed to find interface:", err, outstr, errstr)
++			os.Exit(1)
 +		}
 +		*device = strings.TrimSpace(outstr)
-+		log.Printf("Found interface %s for container '%s'", *device, *cont)
++		fmt.Println("Found interface %s for container '%s'", *device, *cont)
 +	}
 +
  	throttler.Run(&throttler.Config{
  		Device:           *device,
- 		Mode:             *mode,
+ 		Stop:             *stop,

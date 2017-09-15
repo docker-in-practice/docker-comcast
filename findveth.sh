@@ -18,4 +18,4 @@ if [ "$(cat $TMP | wc -l)" -ne 1 ]; then
     exit 1
 fi
 
-echo $(cat $TMP | awk '{print $2}' | sed 's/\([^:]*\).*/\1/')
+echo $(cat $TMP | awk '{print $2}' | sed 's/\([^@:]*\).*/\1/')
