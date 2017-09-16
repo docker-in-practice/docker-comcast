@@ -5,7 +5,7 @@ COPY . /work/
 RUN cd /work && \
     apk update && \
     apk add go=1.8.3-r0 git musl-dev && \
-    apk add ethtool ipfw iptables iproute2 sudo && \
+    apk add ethtool ipfw iptables ip6tables iproute2 sudo && \
     mkdir -p gopath/src/github.com/tylertreat && \
     ln -s $(pwd)/comcast gopath/src/github.com/tylertreat/ && \
     export GOPATH=$(pwd)/gopath && \
@@ -13,6 +13,7 @@ RUN cd /work && \
     cd comcast && \
     patch -p1 <../docker-comcast.patch && \
     go get -d . && \
+    go test -v ./... && \
     go build . && \
     cd .. && \
     \
